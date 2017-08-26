@@ -1,0 +1,61 @@
+###august 25th 2017
+###scraping rankings from boxrec.com 
+
+library(data.table) 
+library(XML)
+
+#pages to be scraped - increments of 20 (first page is "", 2nd is 20, third is 40, etc...)
+pages <- c("",20) 
+
+urls <- rbindlist (lapply(pages, function(x) {
+  url <- paste("http://boxrec.com/en/ratings?&offset=",x, sep="") 
+  data.frame(url)
+}), fill=TRUE)
+
+#get BoxerNames
+boxerNames <- rbindlist(apply(urls, 1, function(url) {
+  doc1 <- htmlParse(url)
+  names <- getNodeSet(doc1,
+     '//*[@id="ratingsResults"]/tbody/tr/td[2]/a')
+  
+  data.frame(sapply(names, function(x) { 
+    xmlValue(x) }),fix.empty.names = FALSE, 
+    check.names = FALSE) }) , fill = TRUE) 
+
+###get Boxer Wins
+
+boxerWins <- rbindlist(apply(urls, 1, function(url) {
+  doc1 <- htmlParse(url)
+  Wrecord <- getNodeSet(doc1,
+        '//*[@id="ratingsResults"]/tbody/tr/td[7]/div[1]/span[1]')
+  
+  data.frame(sapply(Wrecord, function(x) { 
+    xmlValue(x) }),fix.empty.names = FALSE, 
+    check.names = FALSE) }) ,fill = TRUE)
+
+###get Boxer Losses
+
+boxerLosses <- rbindlist(apply(urls, 1, function(url) {
+  doc1 <- htmlParse(url)
+  Lrecord <- getNodeSet(doc1,
+    '//*[@id="ratingsResults"]/tbody/tr/td[7]/div[1]/span[2]')
+  
+  data.frame(sapply(Lrecord, function(x) { 
+    xmlValue(x) }),fix.empty.names = FALSE, 
+    check.names = FALSE) }), 
+    fill = TRUE)
+
+###get Boxer Draws
+
+boxerDraws <- rbindlist(apply(urls, 1, function(url) {
+  doc1 <- htmlParse(url)
+  Drecord <- getNodeSet(doc1,
+      '//*[@id="ratingsResults"]/tbody/tr/td[7]/div[1]/span[3]')
+  
+  data.frame(sapply(Drecord, function(x) { 
+    xmlValue(x) }),fix.empty.names = FALSE, 
+    check.names = FALSE) }) , fill = TRUE)
+
+## bind dataframes Names, Wins, Losses, Draws
+boxer_rec_df <- cbind(boxerNames,boxerWins,boxerLosses,boxerDraws)
+boxer_rec_df <- `colnames<-`(boxer_rec_df,c("Names","Wins","Losses","Draws"))
