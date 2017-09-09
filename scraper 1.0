@@ -1,0 +1,47 @@
+library(XML)
+library(data.table)
+
+#pages to get info from. 1st page is "", 2nd page is 20, 3rd is 40, etc..
+#20 boxers per page
+pages <- c("",20,40,60,80,100,120,140,160,180)
+
+###get pages urls as list/dataframe
+urls <- rbindlist(lapply(pages, function(x) { 
+  url <- paste("http://boxrec.com/en/ratings?&offset=",x, sep = "")
+  data.frame(url)
+}) )
+
+#get top X (defined by pages) lb4lb boxer records from boxrec
+boxerRecords = rbindlist(apply(urls, 1, function(url) {
+  readHTMLTable(url,which = 2)
+}))
+
+#boxerRecords = readHTMLTable("http://boxrec.com/en/ratings?&offset=", which = 2)
+u = cbind.data.frame(boxerRecords$name, boxerRecords$`w-l-d last 6`, 
+                     boxerRecords$age, boxerRecords$division)
+colnames(u) <- c("FighterName", "Record", "Age", "Division")
+
+
+#Seperate W/L/D in different cols. 
+#Sep occurs @ &nbsp (html non-break space which called by regex \\W)  
+wld = data.frame(matrix(unlist(strsplit(as.character(u$Record),"\\W")), 
+                        ncol = 3, byrow = TRUE), stringsAsFactors = FALSE)
+colnames(wld) <- c("Wins","Losses","Draws")
+
+#delete "Record" column
+u$Record <- NULL
+
+#merge (cbind) wld df and u df and reorder cols
+u <- cbind(u,wld)
+u <- u[,c("FighterName","Wins","Losses","Draws","Division","Age")]
+
+#Change "Wins","Losses","Draws", "Age" to integer 
+#u[c("Wins","Losses","Draws", "Age")] <- 
+# sapply(u[c("Wins","Losses","Draws", "Age")], as.integer)
+
+#Change u$FighterName column to chr
+u$FighterName <- as.character(u$FighterName)
+
+#get fighter record by Name. This takes a regex as argument
+#like this: getRecord_Name("Stevenson") 
+getRecord_byName = function(x) { u[grep(x,u$FighterName),]} 
